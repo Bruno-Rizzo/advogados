@@ -1,0 +1,518 @@
+1 - Instalar Breeze:
+
+* sail composer require laravel/breeze --dev
+
+* sail artisan breeze:install
+
+
+2 - Rodar as migrations:
+
+* sail artisan migrate
+
+
+3 - Configurar a página de login para ser a inicial:
+
+> Substituir a rota inicial
+
+    Route::get('/', function () {return view('welcome'); });  por
+
+    Route::redirect('/', 'login');
+
+4 - Copiar a pasta "assets" do template UPCODE para a pasta public do projeto
+
+5 - Criar uma pasta "template_html" e copiar as principais páginas do template que serão utilizadas
+
+6 - Renomear a view app.blade.php e criar uma nova estrutura de layouts fatiando o template
+
+7 - Renomear a view "gest.blade.php" para utilizar como login
+
+8 - Criar as Classes Roles e Permissions com seus respectivos Controllers e migrations:
+
+    sail artisan make:model Role -mc
+    sail artisan make:model Permission -mc
+
+
+9 - Editar a migration roles:
+
+    public function up(): void
+    {
+        Schema::create('roles', function (Blueprint $table) {
+            $table->id();
+            $table->string('name');
+            $table->timestamps();
+        });
+    }
+
+
+10 - Editar a migration permissions:
+
+    public function up(): void
+    {
+        Schema::create('permissions', function (Blueprint $table) {
+            $table->id();
+            $table->string('name');
+            $table->timestamps();
+        });
+    }
+
+
+11 - Criar uma tabela para associar as "Roles" às "Permissions" :
+
+    sail artisan make:migration create_permission_role_table
+
+
+12 - Editar a migration permission_role :
+
+    public function up(): void
+    {
+        Schema::create('permission_role', function (Blueprint $table) {
+            $table->foreignId('permission_id')->constrained('permissions')->onDelete('cascade');
+            $table->foreignId('role_id')->constrained('roles')->onDelete('cascade');
+        });
+    }
+
+
+13 - Modificar a data de criação da migration da tabela "users" de forma que ela aconteça após a "roles"
+
+14 - Inserir a chave estrangeira de "roles" na tabela "users":
+
+    public function up()
+    {
+        Schema::create('users', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('role_id')->constrained('roles')->onDelete('cascade');
+            $table->string('name');
+            $table->string('email')->unique();
+            $table->string('image',255)->default('profile.jpg');
+            $table->timestamp('email_verified_at')->nullable();
+            $table->string('password');
+            $table->rememberToken();
+            $table->timestamps();
+        });
+    }
+
+
+15 - Rodar a migrate:
+
+    sail artisan migrate:fresh
+
+
+16 - Editar as Classes User, Role e Permission com os campos graváveis e os relacionamentos:
+
+   ** Classe ROLE:
+
+     protected $fillable = ['name'];
+
+    public function permissions()
+    {
+        return $this->belongsToMany(Permission::class);
+    }
+
+    public function users()
+    {
+        return $this->hasMany(User::class);
+    }
+
+
+   ** Classe PERMISSION:
+
+   protected $fillable = ['name'];
+
+    public function roles()
+    {
+        return $this->belongsToMany(Role::class);
+    }
+
+
+   ** Classe USER:
+
+   protected $fillable = [
+        'name',
+        'email',
+        'password',
+        'role_id'
+    ];
+
+    public function role()
+    {
+        return $this->belongsTo(Role::class);
+    }
+
+
+17 - Criar um método na Classe ROLE para associar as "permissions" às "roles"
+
+    public function hasPermission($name):bool
+        {
+            return $this->permissions()->where('name',$name)->exists();
+        }
+
+
+18 - Criar um seeder para usuários:
+
+    sail artisan make:seeder UserSeeder
+
+
+19 - Editar o UserSeeder:
+
+use App\Models\Role;
+use App\Models\User;
+
+ public function run()
+    {
+        User::create([
+            'name'              => 'Bruno Rizzo',
+            'email'             => '50008382@pp.rj',
+            'password'          => bcrypt('password'),
+            'role_id'           => Role::create(['name' => 'Administrador'])->id,
+            'email_verified_at' => now(),
+            'created_at'        => now(),
+            'updated_at'        => now(),
+        ]);
+        User::create([
+            'name'              => 'Usuário Teste',
+            'email'             => '12345678@pp.rj',
+            'password'          => bcrypt('password'),
+            'role_id'           => Role::create(['name' => 'Usuário'])->id,
+            'email_verified_at' => now(),
+            'created_at'        => now(),
+            'updated_at'        => now(),
+        ]);
+    }
+
+
+20 - Adicionar o seeder em DatabaseSeeder:
+
+        $this->call([
+            UserSeeder::class
+        ]);
+
+
+21 - Rodar uma migration para criar as tabelas e popular:
+
+    sail artisan migrate:fresh --seed
+
+
+22 - Customizando as mensagens de Login:
+
+    para customizar as mensagens de erro no formulário de login, acessar App\Http\Requests\Auth\LoginRequest.php
+
+
+23 - Criar um Middleware "admin" para bloquear rotas de acesso exclusivo do Administrador
+
+    sail artisan make:middleware EnsureIsAdmin
+
+
+24 - No Middleware criado, dentro da função "handle" colocar a seguinte condição:
+
+        use Illuminate\Support\Facades\Auth;
+
+        if(Auth::user()->role_id != 1)
+        {
+            abort(403);
+        }
+
+
+25 - Criar um "alias" no kernel.php para este Middleware chamado de "admin"
+
+
+26 - Em App\Providers\AuthServiceProvider.php, aplicar regra 'Gate' no método 'boot'
+
+    use Illuminate\Support\Facades\Gate;
+    use Illuminate\Support\Facades\Auth;
+
+    public function boot(): void
+    {
+        Gate::define('admin', function(){
+            return Auth::user()->role_id == 1 ? true : false;
+        });
+    }
+
+
+27 - Na view 'navbar.blade.php' bloquear os links relacionados às configurações utilizando o Middleware
+
+    @can('admin')
+    ....
+    @endcan
+
+
+28 - Nas rotas, bloquear com o middleware('admin')
+
+    Route::middleware('admin')->group(function () {
+        ...
+});
+
+
+29 - Criar o UserController e seus métodos:
+
+    sail artisan make:controller UserController
+
+
+30 - Para as validações do método 'store' do UserController, criar um FormRequest :
+
+    sail artisan make:request UserStore
+
+
+31 - Para utilizar o UserStore no UserController:
+
+    use App\Http\Requests\UserStore;
+
+    public function store(UserStore $request)
+    {
+        $validated = $request->validated();
+        ...
+    }
+
+
+32 - Para as validações do método 'update' do UserController, criar um FormRequest :
+
+    sail artisan make:request UserUpdate
+
+
+33 - Para utilizar o UserUpdate no UserController:
+
+    use App\Http\Requests\UserUpdate;
+
+    public function store(UserUpdate $request)
+    {
+        $validated = $request->validated();
+        ...
+    }
+
+
+34 - Instalando a Biblioteca Sweet Alert no laravel
+
+    sail composer require realrashid/sweet-alert
+
+    Em App\config\app.php registar o ServiceProvider : RealRashid\SweetAlert\SweetAlertServiceProvider::class
+
+    Criar o "aliases":  'Alert' => RealRashid\SweetAlert\Facades\Alert::class
+
+    Colocar o "include" no Master Layout : @include('sweetalert::alert')
+
+    Publicar: sail artisan sweetalert:publish
+
+    Para utilizar na classe: use RealRashid\SweetAlert\Facades\Alert;
+
+
+35 - Criar os métodos do RoleController
+
+
+36 - Para as validações do método 'store' do RoleController, criar um FormRequest :
+
+    sail artisan make:request RoleStore
+
+
+37 - Para as validações do método 'update' do RolerController, criar um FormRequest :
+
+    sail artisan make:request RoleUpdate
+
+
+38 - Para as validações do método 'find' do UserController, criar um FormRequest :
+
+    sail artisan make:request UserFind
+
+
+39- Criar o Model PrinsionalUnit com migrations e controller:
+
+    sail artisan make:model PrisionalUnit -mc
+
+
+40 - Criar um seeder para as Unidades Prisionais:
+
+    sail artisan make:seed PrisionalUnitSeeder
+
+41 - Criar um seeder para as Roles:
+
+    sail artisan make:seed RoleSeeder
+
+42 - Criar um seeder para as Permissions:
+
+    sail artisan make:seed PermissionSeeder
+
+
+43 - Ciar as Polices para a classe User:
+
+    sail artisan make:policy UserPolicy --model=User
+
+    Na Police criar os métodos
+
+    public function view(): bool
+    {
+        return Auth::user()->role->hasPermission('usuario-visualizar');
+    }
+
+    ...
+
+
+44 - Criar um seeder para associar permissões:
+
+    sail artisan make:seed AssignPermissionsSeeder
+
+
+45 - No AssignPermissionsSeeder , inserir a permissões de Administrador
+
+    use Illuminate\Support\Facades\DB;
+
+    DB::table('permission_role')->insert([
+
+            ['permission_id'=>'1', 'role_id'=>'1'],
+            ['permission_id'=>'2', 'role_id'=>'1'],
+            ['permission_id'=>'3', 'role_id'=>'1'],
+            ['permission_id'=>'4', 'role_id'=>'1'],
+
+           ]);
+
+
+46 - Inserir as Polices no UserController e nas views relacionadas
+
+
+47 - Criar um seeder para popular com usuários:
+
+    sail artisan make:seed AuxiliarySeeder
+
+
+48 - Incluir o 'SoftDeletes' nos Models
+
+
+    sail artisan make:migration add_deleted_at_field_to_users_table
+
+
+    ** Na migration criada
+
+    public function up(): void
+    {
+        Schema::table('users', function (Blueprint $table) {
+            $table->softDeletes();
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::table('users', function (Blueprint $table) {
+            $table->DropSoftDeletes();
+        });
+    }
+
+    ** No Model
+
+    use Illuminate\Database\Eloquent\SoftDeletes;
+
+    class User extends Authenticatable
+    {
+        use HasApiTokens, HasFactory, Notifiable, use SoftDeletes;
+        ...
+    }
+
+
+    sail artisan make:migration add_deleted_at_field_to_prisional_units_table
+
+    ** Na migration criada
+
+    public function up(): void
+    {
+        Schema::table('prisional_units', function (Blueprint $table) {
+            $table->softDeletes();
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::table('prisional_units', function (Blueprint $table) {
+            $table->DropSoftDeletes();
+        });
+    }
+
+     ** No Model
+
+     class PrisionalUnit extends Model
+    {
+        use HasFactory, SoftDeletes;
+        ...
+    }
+
+    sail artisan make:migration add_deleted_at_field_to_roles_table
+
+    ** Na migration criada
+
+    public function up(): void
+    {
+        Schema::table('roles', function (Blueprint $table) {
+            $table->softDeletes();
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::table('roles', function (Blueprint $table) {
+            $table->DropSoftDeletes();
+        });
+    }
+
+    ** No Model
+
+    use Illuminate\Database\Eloquent\SoftDeletes;
+
+    class Role extends Model
+    {
+        use HasFactory, SoftDeletes;
+        ...
+    }
+
+
+    sail artisan migrate
+
+
+49 - Utilizando a biblioteca Laravel Auditing
+
+    sail composer require owen-it/laravel-auditing
+
+    Em config/app.php :
+
+    'providers' => [
+
+    /*
+    * Package Service Providers...
+    */
+
+    OwenIt\Auditing\AuditingServiceProvider::class,
+
+    ]
+
+    sail artisan vendor:publish --provider "OwenIt\Auditing\AuditingServiceProvider" --tag="config"
+
+    sail artisan vendor:publish --provider "OwenIt\Auditing\AuditingServiceProvider" --tag="migrations"
+
+    sail artisan migrate
+
+    ** Para monitorar uma Classe específica :
+
+
+    use OwenIt\Auditing\Contracts\Auditable;
+
+    class User extends Authenticatable implements Auditable
+    {
+        use HasApiTokens, HasFactory, Notifiable, SoftDeletes;
+        use \OwenIt\Auditing\Auditable;
+
+        ...
+    }
+
+
+    ** Criando um controller
+
+    sail artisan make:controller AuditController
+
+
+50 - Para as validações do método 'search' doAuditController, criar um FormRequest :
+
+    sail artisan make:request AuditSearch
+
+
+51 - Incluindo uma verificação no Login:
+
+* Em Http/Requests/Auth/LoginRequest
+
+- Substituir a linha :  if (! Auth::attempt($this->only('email', 'password'), $this->boolean('remember'))) {
+- por                :  if (! Auth::attempt( array_merge($this->only('email', 'password'), ['status' => 1 ]), $this->boolean('remember'))) {
+
+
