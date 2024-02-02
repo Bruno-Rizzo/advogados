@@ -37,6 +37,8 @@ class AssignPermissionsSeeder extends Seeder
             ['permission_id'=>'8', 'role_id'=>'3'],
             ['permission_id'=>'9', 'role_id'=>'3'],
             ['permission_id'=>'10', 'role_id'=>'3'],
+            ['permission_id'=>'12', 'role_id'=>'3'],
+            ['permission_id'=>'14', 'role_id'=>'3'],
 
             ['permission_id'=>'5', 'role_id'=>'4'],
             ['permission_id'=>'6', 'role_id'=>'4'],
@@ -45,6 +47,7 @@ class AssignPermissionsSeeder extends Seeder
             ['permission_id'=>'9', 'role_id'=>'4'],
             ['permission_id'=>'10', 'role_id'=>'4'],
             ['permission_id'=>'12', 'role_id'=>'4'],
+            ['permission_id'=>'14', 'role_id'=>'4'],
 
             ['permission_id'=>'5', 'role_id'=>'5'],
             ['permission_id'=>'6', 'role_id'=>'5'],
@@ -53,6 +56,7 @@ class AssignPermissionsSeeder extends Seeder
             ['permission_id'=>'9', 'role_id'=>'5'],
             ['permission_id'=>'10', 'role_id'=>'5'],
             ['permission_id'=>'12', 'role_id'=>'5'],
+            ['permission_id'=>'14', 'role_id'=>'5'],
 
             ['permission_id'=>'5', 'role_id'=>'6'],
             ['permission_id'=>'6', 'role_id'=>'6'],

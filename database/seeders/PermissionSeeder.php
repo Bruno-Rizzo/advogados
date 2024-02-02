@@ -27,5 +27,7 @@ class PermissionSeeder extends Seeder
 
         Permission::create(['name' => 'relatório-visualizar']);
         Permission::create(['name' => 'relatório-auditoria']);
+
+        Permission::create(['name' => 'dashboard-visualizar']);
     }
 }
